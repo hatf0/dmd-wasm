@@ -17,6 +17,8 @@ import core.stdc.stdlib;
 import core.stdc.string : strerror;
 import core.sys.posix.fcntl;
 import core.sys.posix.unistd;
+import core.sys.wasi.fcntl;
+import core.sys.wasi.unistd;
 import core.sys.windows.winbase;
 import core.sys.windows.winnt;
 import dmd.root.filename;
@@ -38,7 +40,7 @@ struct FileMapping(Datum)
 
     version(Posix) enum invalidHandle = -1;
     else version(Windows) enum invalidHandle = INVALID_HANDLE_VALUE;
-
+    else version(WebAssembly) enum invalidHandle = -1;
     // state {
     /// Handle of underlying file
     private auto handle = invalidHandle;
@@ -129,6 +131,11 @@ struct FileMapping(Datum)
                 }
             }
             createMapping(filename, File.size(handle));
+        }
+        else version(WebAssembly)
+        {
+            fprintf(stderr, "FileMapping() stub");
+            exit(1);
         }
         else static assert(0);
 
@@ -233,6 +240,10 @@ struct FileMapping(Datum)
                 }
                 handle = invalidHandle;
             }
+            else version(WebAssembly) {
+                fprintf(stderr, "FileMapping dtor stub");
+                exit(1);
+            }
             else static assert(0);
         });
     }
@@ -293,6 +304,11 @@ struct FileMapping(Datum)
                 fprintf(stderr, "DeleteFileA error %d\n", GetLastError());
                 return false;
             }
+        }
+        else version(WebAssembly) 
+        {
+            fprintf(stderr, "discard() stub");
+            exit(1);
         }
         else static assert(0);
         return true;
@@ -387,6 +403,10 @@ struct FileMapping(Datum)
                 }
                 createMapping(name, size);
             }
+            else version(WebAssembly) {
+                fprintf(stderr, "resize() stub");
+                exit(1);
+            }
             else static assert(0);
         });
     }
@@ -422,6 +442,11 @@ struct FileMapping(Datum)
                 fprintf(stderr, "MoveFileExA(\"%s\", \"%s\") failed: %d\n", oldname, filename, GetLastError());
                 return false;
             }
+        }
+        else version(WebAssembly) 
+        {
+            fprintf(stderr, "() stub");
+            exit(1);
         }
         else static assert(0);
         return true;
@@ -576,6 +601,52 @@ nothrow:
             mem.xfree(buffer);
             return result;
         }
+        else version(WebAssembly) {
+            size_t size;
+            stat_t buf;
+            ssize_t numread;
+            //printf("File::read('%s')\n",name);
+            int fd = name.toCStringThen!(slice => open(slice.ptr, O_RDONLY));
+            if (fd == -1)
+            {
+                //printf("\topen error, errno = %d\n",errno);
+                return result;
+            }
+            //printf("\tfile opened\n");
+            if (fstat(fd, &buf))
+            {
+                perror("\tfstat error");
+                close(fd);
+                return result;
+            }
+            size = cast(size_t)buf.st_size;
+            ubyte* buffer = cast(ubyte*)mem.xmalloc_noscan(size + 4);
+            numread = .read(fd, buffer, size);
+            if (numread != size)
+            {
+                perror("\tread error");
+                goto err2;
+            }
+            if (close(fd) == -1)
+            {
+                perror("\tclose error");
+                goto err;
+            }
+            // Always store a wchar ^Z past end of buffer so scanner has a sentinel
+            buffer[size] = 0; // ^Z is obsolete, use 0
+            buffer[size + 1] = 0;
+            buffer[size + 2] = 0; //add two more so lexer doesnt read pass the buffer
+            buffer[size + 3] = 0;
+
+            result.success = true;
+            result.buffer.data = buffer[0 .. size];
+            return result;
+        err2:
+            close(fd);
+        err:
+            mem.xfree(buffer);
+            return result;
+        }
         else
         {
             assert(0);
@@ -602,6 +673,11 @@ nothrow:
             .remove(name);
         err:
             return false;
+        }
+        else version (WebAssembly)
+        {
+            exit(1);
+            assert(0);
         }
         else version (Windows)
         {
@@ -655,6 +731,10 @@ nothrow:
     extern (C++) static void remove(const(char)* name)
     {
         version (Posix)
+        {
+            .remove(name);
+        }
+        else version(WebAssembly)
         {
             .remove(name);
         }
@@ -749,6 +829,11 @@ nothrow:
             import core.sys.posix.utime;
             return utime(namez, null) == 0;
         }
+        else version(WebAssembly)
+        {
+            fprintf(stderr, "touch() stub");
+            return false;
+        }
         else
             static assert(0);
     }
@@ -772,6 +857,9 @@ nothrow:
             // Doesn't exist, not a regular file, different size
             if (nameStr.extendedPathThen!(p => GetFileAttributesExW(p.ptr, GET_FILEEX_INFO_LEVELS.GetFileExInfoStandard, &fad)) != 0)
                 return (ulong(fad.nFileSizeHigh) << 32UL) | fad.nFileSizeLow;
+        }
+        else version (WebAssembly)
+        {
         }
         else static assert(0);
         // Error cases go here.

@@ -41,6 +41,8 @@ import dmd.visitor;
 
 version(Windows) {
     extern (C) char* getcwd(char* buffer, size_t maxlen);
+} else version(WebAssembly) {
+    import core.sys.wasi.unistd : getcwd;
 } else {
     import core.sys.posix.unistd : getcwd;
 }

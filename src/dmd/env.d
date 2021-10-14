@@ -31,6 +31,9 @@ Returns:
 */
 bool putenvRestorable(const(char)[] name, const(char)[] value) nothrow
 {
+    version (WebAssembly) {
+        return false;
+    } else {
     saveEnvVar(name);
     const nameValue = allocNameValue(name, value);
     const result = putenv(cast(char*)nameValue.ptr);
@@ -42,6 +45,7 @@ bool putenvRestorable(const(char)[] name, const(char)[] value) nothrow
             mem.xfree(cast(void*)nameValue.ptr);
     }
     return result ? true : false;
+    }
 }
 
 /**
@@ -70,10 +74,13 @@ private __gshared string[string] envNameValues;
 /// Restore the original environment.
 void restoreEnvVars()
 {
-    foreach (var; envNameValues.values)
-    {
-        if (putenv(cast(char*)var.ptr))
-            assert(0);
+    version (WebAssembly) {}
+    else {
+        foreach (var; envNameValues.values)
+        {
+            if (putenv(cast(char*)var.ptr))
+                assert(0);
+        }
     }
 }
 

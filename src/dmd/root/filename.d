@@ -62,6 +62,10 @@ private bool isDirSeparator(char c) pure nothrow @nogc @safe
     {
         return c == '/';
     }
+    else version (WebAssembly)
+    {
+        return c == '/';
+    }
     else
     {
         assert(0);
@@ -132,6 +136,10 @@ nothrow:
         {
             return isDirSeparator(name[0]);
         }
+        else version (WebAssembly)
+        {
+            return isDirSeparator(name[0]);
+        }
         else
         {
             assert(0);
@@ -162,9 +170,13 @@ nothrow:
     */
     extern (C++) static const(char)* toAbsolute(const(char)* name, const(char)* base = null)
     {
-        const name_ = name.toDString();
-        const base_ = base ? base.toDString() : getcwd(null, 0).toDString();
-        return absolute(name_) ? name : combine(base_, name_).ptr;
+        static if (__traits(compiles, getcwd(null, 0))) {
+            const name_ = name.toDString();
+            const base_ = base ? base.toDString() : getcwd(null, 0).toDString();
+            return absolute(name_) ? name : combine(base_, name_).ptr;
+        } else {
+            return "";
+        }
     }
 
     /********************************
@@ -497,6 +509,10 @@ nothrow:
                     version (Windows)
                     {
                     case ';':
+                    }
+                    version (WebAssembly)
+                    {
+                    case ':':
                     }
                     version (Posix)
                     {
@@ -852,6 +868,19 @@ nothrow:
                 return 2;
             return 1;
         }
+        else version (WebAssembly) 
+        {
+            import std.stdio;
+            
+            import core.sys.wasi.fcntl;
+            stat_t st;
+            debug writefln("Does %s exist?", name);
+            if (name.toCStringThen!((v) => stat(v.ptr, &st)) < 0)
+                return 0;
+            if (S_ISDIR(st.st_mode))
+                return 2;
+            return 1;
+        }
         else version (Windows)
         {
             return name.toWStringzThen!((wname)
@@ -924,6 +953,8 @@ nothrow:
             errno = 0;
             const r = path.toCStringThen!((pathCS) => mkdir(pathCS.ptr, (7 << 6) | (7 << 3) | 7));
         }
+        version (WebAssembly) 
+            const r = 1;
 
         if (r == 0)
             return true;

@@ -180,6 +180,11 @@ extern (C++) struct CTFloat
         {
             auto r = cast(real_t) strtold_dm(literal, null);
         }
+        version(WebAssembly)
+        {
+            real r = 0.0;
+            strtold(literal, null, &r);
+        }
         else
             auto r = strtold(literal, null);
         version(CRuntime_DigitalMars) __locale_decpoint = save;

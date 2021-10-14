@@ -62,6 +62,8 @@ Target.OS defaultTargetOS()
         return Target.OS.Solaris;
     else version (DragonFlyBSD)
         return Target.OS.DragonFlyBSD;
+    else version (WebAssembly)
+        return Target.OS.linux;
     else
         static assert(0, "unknown TARGET");
 }

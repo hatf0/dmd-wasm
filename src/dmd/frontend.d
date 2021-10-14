@@ -286,10 +286,13 @@ string determineDefaultCompiler()
     import std.algorithm.iteration : filter, joiner, map, splitter;
     import std.file : exists;
     import std.path : buildPath;
-    import std.process : environment;
     import std.range : front, empty, transposed;
     // adapted from DUB: https://github.com/dlang/dub/blob/350a0315c38fab9d3d0c4c9d30ff6bb90efb54d6/source/dub/dub.d#L1183
 
+    version (WebAssembly) {
+        return "";
+    } else {
+    import std.process : environment;
     auto compilers = ["dmd", "gdc", "gdmd", "ldc2", "ldmd2"];
 
     // Search the user's PATH for the compiler binary
@@ -298,6 +301,7 @@ string determineDefaultCompiler()
     auto paths = environment.get("PATH", "").splitter(sep);
     auto res = compilers.map!(c => paths.map!(p => p.buildPath(c~exe))).joiner.filter!exists;
     return !res.empty ? res.front : null;
+    }
 }
 
 /**
@@ -355,6 +359,9 @@ auto findImportPaths()
 
     immutable execDir = execFilePath.dirName;
 
+    version (WebAssembly) {
+        return "";
+    } else {
     string iniFile;
     if (execFilePath.endsWith("ldc"~exe, "ldc2"~exe, "ldmd"~exe, "ldmd2"~exe))
         iniFile = findLDCConfig(execFilePath);
@@ -363,6 +370,7 @@ auto findImportPaths()
 
     assert(iniFile !is null && iniFile.exists, "No valid config found.");
     return iniFile.parseImportPathsFromConfig(execDir);
+    }
 }
 
 /**

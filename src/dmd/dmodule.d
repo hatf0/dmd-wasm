@@ -676,7 +676,12 @@ extern (C++) final class Module : Package
                     import core.sys.posix.unistd : getpid;
                 else version (Windows)
                     import core.sys.windows.winbase : getpid = GetCurrentProcessId;
-                buf.printf("__stdin_%d.d", getpid());
+                    
+                version (WebAssembly) {
+                    buf.printf("__stdin_hacked_getpid.d");
+                } else {
+                    buf.printf("__stdin_%d.d", getpid());
+                }
                 arg = buf[];
             }
             if (global.params.preservePaths)

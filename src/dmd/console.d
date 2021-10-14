@@ -25,6 +25,10 @@ else version (Posix)
 {
     import core.sys.posix.unistd;
 }
+else version(WebAssembly)
+{
+    import core.sys.wasi.unistd;
+}
 else
 {
     static assert(0);
@@ -223,6 +227,10 @@ bool detectTerminal() nothrow
 
         CONSOLE_SCREEN_BUFFER_INFO sbi;
         return GetConsoleScreenBufferInfo(h, &sbi) != 0;
+    }
+    else version(WebAssembly)
+    {
+        return true;
     }
 }
 
