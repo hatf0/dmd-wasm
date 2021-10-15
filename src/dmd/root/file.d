@@ -676,8 +676,21 @@ nothrow:
         }
         else version (WebAssembly)
         {
-            exit(1);
-            assert(0);
+            ssize_t numwritten;
+            int fd = open(name, O_CREAT | O_WRONLY | O_TRUNC, (6 << 6) | (4 << 3) | 4);
+            if (fd == -1)
+                goto err;
+            numwritten = .write(fd, data.ptr, data.length);
+            if (numwritten != data.length)
+                goto err2;
+            if (close(fd) == -1)
+                goto err;
+            return true;
+        err2:
+            close(fd);
+            .remove(name);
+        err:
+            return false;
         }
         else version (Windows)
         {

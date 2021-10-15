@@ -435,8 +435,13 @@ nothrow:
                 if (!isDirSeparator(last) && last != ':')
                     p[length++] = '\\';
             }
-            else
+            else version (WebAssembly) {
+                if (!isDirSeparator(last))
+                    p[length++] = '/';
+            } 
+            else {
                 assert(0);
+            }
         }
 
         // overwrite last slash with null terminator
@@ -870,11 +875,11 @@ nothrow:
         }
         else version (WebAssembly) 
         {
-            import std.stdio;
+            // import std.stdio;
             
             import core.sys.wasi.fcntl;
             stat_t st;
-            debug writefln("Does %s exist?", name);
+            // debug writefln("Does %s exist?", name);
             if (name.toCStringThen!((v) => stat(v.ptr, &st)) < 0)
                 return 0;
             if (S_ISDIR(st.st_mode))
